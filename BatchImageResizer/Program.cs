@@ -5,6 +5,7 @@ using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
+using System.Text;
 
 namespace BatchImageResizer
 {
@@ -12,9 +13,12 @@ namespace BatchImageResizer
     {
         static void Main(string[] args)
         {
+            var logBuilder = new StringBuilder();
+            Action<string> log = msg => { Console.WriteLine(msg); logBuilder.AppendLine(msg); };
+
             if (args.Length < 1)
             {
-                Console.WriteLine("Usage: BatchImageResizer.exe <image_folder_path> [jpeg_quality]");
+                log("Usage: BatchImageResizer.exe <image_folder_path> [jpeg_quality]");
                 return;
             }
 
@@ -24,21 +28,21 @@ namespace BatchImageResizer
             {
                 if (!int.TryParse(args[1], out jpegQuality) || jpegQuality < 1 || jpegQuality > 100)
                 {
-                    Console.WriteLine("Invalid jpeg_quality parameter. Using default quality 90.");
+                    log("Invalid jpeg_quality parameter. Using default quality 90.");
                     jpegQuality = 90;
                 }
             }
 
             if (!Directory.Exists(folderPath))
             {
-                Console.WriteLine("Directory does not exist: " + folderPath);
+                log("Directory does not exist: " + folderPath);
                 return;
             }
 
             string[] imageFiles = Directory.GetFiles(folderPath, "*.jpg").Concat(Directory.GetFiles(folderPath, "*.png")).ToArray();
             if (imageFiles.Length == 0)
             {
-                Console.WriteLine("No .jpg or .png files found in the directory.");
+                log("No .jpg or .png files found in the directory.");
                 return;
             }
 
@@ -55,11 +59,12 @@ namespace BatchImageResizer
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Failed to load {file}: {ex.Message}");
+                    log(string.Format("Failed to load {0}: {1}", file, ex.Message));
                 }
             }
 
-            string convertedFolder = Path.Combine(folderPath, "converted");
+            string timestamp = DateTime.Now.ToString("yyyyMMddHHmmss");
+            string convertedFolder = Path.Combine(folderPath, "converted-" + timestamp);
             if (!Directory.Exists(convertedFolder))
                 Directory.CreateDirectory(convertedFolder);
 
@@ -105,12 +110,12 @@ namespace BatchImageResizer
                         resized.Save(outPath); // PNG or other
                     }
                     fileStopwatch.Stop();
-                    Console.WriteLine($"Processed: {fileName} | Original: {origWidth}x{origHeight} | New: {newWidth}x{newHeight} | Time: {fileStopwatch.ElapsedMilliseconds} ms");
+                    log(string.Format("Processed: {0} | Original: {1}x{2} | New: {3}x{4} | Time: {5} ms", fileName, origWidth, origHeight, newWidth, newHeight, fileStopwatch.ElapsedMilliseconds));
                     processedCount++;
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Failed to save {fileName}: {ex.Message}");
+                    log(string.Format("Failed to save {0}: {1}", fileName, ex.Message));
                 }
                 finally
                 {
@@ -118,13 +123,22 @@ namespace BatchImageResizer
                 }
             }
             totalStopwatch.Stop();
-            Console.WriteLine($"Total files processed: {processedCount}");
-            Console.WriteLine($"Total elapsed time: {totalStopwatch.ElapsedMilliseconds} ms");
+            log("Total files processed: " + processedCount);
+            log("Total elapsed time: " + totalStopwatch.ElapsedMilliseconds + " ms");
 
             // Unoptimized: Do not dispose loaded images until all processing is done
             foreach (var img in loadedImages)
             {
                 img.Dispose();
+            }
+
+            try
+            {
+                File.WriteAllText(Path.Combine(convertedFolder, "stats.log"), logBuilder.ToString());
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Failed to write stats.log: " + ex.Message);
             }
         }
     }
