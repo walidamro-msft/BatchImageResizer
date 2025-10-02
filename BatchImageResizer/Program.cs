@@ -13,25 +13,44 @@ namespace BatchImageResizer
     {
         static void Main(string[] args)
         {
+
+            const int DefaultJpegQuality = 60;
+            const string DefaultImagesPath = @"C:\Temp\NASA Images";
+
             var logBuilder = new StringBuilder();
             Action<string> log = msg => { Console.WriteLine(msg); logBuilder.AppendLine(msg); };
 
-            if (args.Length < 1)
-            {
-                log("Usage: BatchImageResizer.exe <image_folder_path> [jpeg_quality]");
-                return;
-            }
+            // Filter out BenchmarkDotNet arguments (those starting with --)
+            var filteredArgs = args.Where(a => !a.StartsWith("--")).ToArray();
 
-            string folderPath = args[0];
-            int jpegQuality = 90; // Default quality
-            if (args.Length >= 2)
+            string folderPath;
+            int jpegQuality = DefaultJpegQuality; // Default quality
+            if (filteredArgs.Length < 1)
             {
-                if (!int.TryParse(args[1], out jpegQuality) || jpegQuality < 1 || jpegQuality > 100)
+                folderPath = DefaultImagesPath;
+                log("No folder path argument provided. Using default: " + folderPath);
+            }
+            else if (Directory.Exists(filteredArgs[0]))
+            {
+                folderPath = filteredArgs[0];
+            }
+            else
+            {
+                log($"Provided folder path argument '{filteredArgs[0]}' is not a valid directory. Using default: {DefaultImagesPath}");
+                folderPath = DefaultImagesPath;
+            }
+            if (filteredArgs.Length >= 2)
+            {
+                if (!int.TryParse(filteredArgs[1], out jpegQuality) || jpegQuality < 1 || jpegQuality > 100)
                 {
-                    log("Invalid jpeg_quality parameter. Using default quality 90.");
-                    jpegQuality = 90;
+                    log($"Invalid jpeg_quality parameter. Using default quality {DefaultJpegQuality}.");
+                    jpegQuality = DefaultJpegQuality;
                 }
             }
+
+            // Print used parameters before checking folder existence
+            log($"Using folder path: {folderPath}");
+            log($"Using jpeg quality: {jpegQuality}");
 
             if (!Directory.Exists(folderPath))
             {
